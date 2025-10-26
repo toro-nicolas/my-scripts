@@ -1,47 +1,42 @@
 #!/bin/bash
 
-# Install version exemple :
-#git clone https://github.com/SFML/SFML.git
-#cd SFML
-#git checkout 3.0.0
-#mkdir build && cd build
-#cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/sfml-3.0.0
-#make -j$(nproc)
-#sudo make install
+VERSION_LIST=$(ls -d sfml/*/ | xargs -n 1 basename)
 
-
-
-# Vérifie si un argument a été passé (numéro de version SFML)
-if [ -z "$1" ]; then
-  echo "Erreur : aucun numéro de version SFML fourni."
-  echo "Usage : $0 <version>"
-  exit 1
+if [ $# -ne 1 ]; then
+    echo "Usage: sudo $0 <version>"
+    echo "Available versions: $(echo $VERSION_LIST | tr ' ' ', ')"
+    exit 1
 fi
 
 VERSION=$1
-SFML_DIR="/opt/sfml-$VERSION"
-INCLUDE_DIR="/usr/local/include"
 
-# Vérifie si le répertoire /opt/sfml-[version] existe
-if [ ! -d "$SFML_DIR" ]; then
-  echo "Erreur : le répertoire $SFML_DIR n'existe pas. Assurez-vous que SFML $VERSION est installé dans /opt."
-  exit 1
+if [ ! -d "sfml/$VERSION" ]; then
+    echo "Error: version '$VERSION' not available."
+    echo "Available versions: $(echo $VERSION_LIST | tr ' ' ', ')"
+    exit 1
 fi
 
-# Vérifie si le répertoire de destination /usr/local/include/SFML existe
-if [ -d "$INCLUDE_DIR/SFML" ]; then
-  echo "Suppression de l'ancien dossier $INCLUDE_DIR..."
-  sudo rm -rf "$INCLUDE_DIR/SFML"
-fi
+echo "Switching SFML version to $VERSION..."
 
-# Copie les fichiers de /opt/sfml-[version]/include dans /usr/local/include/SFML
-echo "Copie des fichiers de $SFML_DIR/include vers $INCLUDE_DIR..."
-sudo cp -r "$SFML_DIR/include/SFML" "$INCLUDE_DIR"
+# Cleanup files
+echo "Cleaning up old SFML files..."
+rm -rf /usr/lib/cmake/SFML
+rm -rf /usr/lib/cmake/CSFML
+rm -rf /usr/include/SFML
+rm -rf /usr/include/CSFML
+rm -rf /usr/lib/libcsfml*.so*
+rm -rf /usr/lib/libsfml*.so*
+rm -rf /usr/lib/pckgconfig/sfml-*.pc
+rm -rf /usr/lib/pckgconfig/csfml-*.pc
 
-# Vérifie si la copie a réussi
-if [ $? -eq 0 ]; then
-  echo "SFML $VERSION a été installé avec succès dans $INCLUDE_DIR."
-else
-  echo "Erreur lors de la copie des fichiers."
-  exit 1
-fi
+# Copy new files
+echo "Copying new SFML files..."
+cp -Pr sfml/$VERSION/cmake/* /usr/lib/
+cp -Pr sfml/$VERSION/include/* /usr/include/
+cp -P sfml/$VERSION/lib/* /usr/lib/
+cp -P sfml/$VERSION/pkgconfig/* /usr/lib/pkgconfig/
+
+# Reload library cache
+ldconfig
+
+echo "Switched SFML version to $VERSION"
